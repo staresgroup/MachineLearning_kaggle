@@ -12,6 +12,7 @@ gc.enable()
 def load_data(file_path, dtypes):
     print('loading data......')
     df = pd.read_csv(file_path, dtype=dtypes)
+    # Delete rows that contain null values
     df = df.dropna()
     print('loaded finally')
     return df
@@ -31,6 +32,7 @@ if __name__ == '__main__':
     features = ['assists', 'boosts', 'damageDealt', 'DBNOs', 'headshotKills', 'heals', 'killPlace', 'killPoints',
                 'kills', 'killStreaks', 'longestKill', 'maxPlace', 'revives', 'roadKills', 'weaponsAcquired',
                 'rideDistance', 'swimDistance', 'walkDistance']
+    # Specify the type in advance to save memory
     dtypes = {
         'Id': 'object',
         'groupId': 'object',
@@ -69,6 +71,7 @@ if __name__ == '__main__':
     X_test = test[features]
     del train
     gc.collect()
+
     X_train['totalDistance'] = X_train['walkDistance'] + X_train['rideDistance'] + X_train['swimDistance']
     X_test['totalDistance'] = X_test['walkDistance'] + X_test['rideDistance'] + X_test['swimDistance']
     del X_train['walkDistance'], X_train['rideDistance'], X_train['swimDistance']
@@ -77,9 +80,19 @@ if __name__ == '__main__':
     scaler = preprocessing.MinMaxScaler(copy=False).fit(X_train)
     X_train = scaler.transform(X_train)
     X_test = scaler.transform(X_test)
-    mlp = MLP(layer_size=[X_train.shape[1], 8, 8, 8, 1], rate_init=0.02, loss_type="mse", epoch_train=10, epoch_decay=10,
-              verbose=1)
+    mlp_param = {
+        'loss_type': 'mse',
+        'layer_size': [X_train.shape[1], 8, 8, 8, 1],
+        'output_range': [0, 1],
+        'importance_out': True,
+        'rate_init': 0.02,
+        'epoch_train': 5,
+        'epoch_decay': 10,
+        'verbose': 1,
+    }
+    mlp = MLP(mlp_param)
     mlp.fit(X_train, y_train)
+    print("feature importances:", mlp.feature_importances_)
     pred = mlp.predict(X_test)
     save_csv(pred, test)
     end_time = time.time()
